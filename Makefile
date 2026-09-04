@@ -52,9 +52,15 @@ else ifeq ($(platform), osx)
    LIBUSB = 1
    LIBUSB_DARWIN = 1
    LIBUSB_CFLAGS += -DOS_DARWIN -DTHREADS_POSIX -DHAVE_GETTIMEOFDAY -DHAVE_SYS_TIME_H -DPOLL_NFDS_TYPE=nfds_t -DHAVE_POLL_H -pthread
-   OSXVER = `sw_vers -productVersion | cut -d. -f 2`
-   OSX_LT_MAVERICKS = `(( $(OSXVER) <= 9)) && echo "YES"`
-   fpic += -mmacosx-version-min=10.1
+ifeq ($(CROSS_COMPILE),1)
+	TARGET_RULE   = -target $(LIBRETRO_APPLE_PLATFORM) -isysroot $(LIBRETRO_APPLE_ISYSROOT)
+	CFLAGS       += $(TARGET_RULE)
+	LDFLAGS      += $(TARGET_RULE)
+else
+   MINVERSION := -mmacosx-version-min=10.9
+   CFLAGS     += $(MINVERSION)
+   LDFLAGS    += $(MINVERSION)
+endif
 
 # iOS
 else ifneq (,$(findstring ios,$(platform)))
