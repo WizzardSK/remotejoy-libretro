@@ -1,0 +1,62 @@
+name: buildbot preflight
+on: [push, workflow_dispatch]
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm -v "$PWD":/src -w /src ubuntu:xenial \
+            sh -c 'apt-get update -qy && apt-get install -qy build-essential && make -j2 && strip --strip-unneeded remotejoy_libretro.so && nm -D --defined-only remotejoy_libretro.so | sort && ldd remotejoy_libretro.so'
+
+  linux-i686:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm --platform linux/386 -v "$PWD":/src -w /src i386/ubuntu:xenial \
+            sh -c 'apt-get update -qy && apt-get install -qy build-essential && make ARCH=x86 -j2 && ldd remotejoy_libretro.so'
+
+  linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm -v "$PWD":/src -w /src ubuntu:focal \
+            sh -c 'apt-get update -qy && DEBIAN_FRONTEND=noninteractive apt-get install -qy build-essential && make -j2 && ldd remotejoy_libretro.so'
+
+  windows-x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qy && sudo apt-get install -qy g++-mingw-w64-x86-64-posix
+      - run: make platform=win64 ARCH=x86_64 CC=x86_64-w64-mingw32-gcc-posix AR=x86_64-w64-mingw32-ar -j2
+      - run: file remotejoy_libretro.dll
+
+  windows-i686:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qy && sudo apt-get install -qy g++-mingw-w64-i686-posix
+      - run: make platform=win32 ARCH=x86 CC=i686-w64-mingw32-gcc-posix AR=i686-w64-mingw32-ar -j2
+      - run: file remotejoy_libretro.dll
+
+  osx-x64:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - run: make platform=osx CC=clang -j3
+      - run: lipo -info remotejoy_libretro.dylib && otool -L remotejoy_libretro.dylib
+
+  osx-arm64:
+    runs-on: macos-latest
+    env:
+      CROSS_COMPILE: 1
+      LIBRETRO_APPLE_PLATFORM: arm64-apple-macos10.15
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          export LIBRETRO_APPLE_ISYSROOT=$(xcodebuild -version -sdk macosx Path)
+          make platform=osx arch=arm CC=clang -j3
+      - run: lipo -info remotejoy_libretro.dylib && otool -L remotejoy_libretro.dylib
