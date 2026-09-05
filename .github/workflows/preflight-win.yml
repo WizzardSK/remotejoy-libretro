@@ -23,7 +23,7 @@ jobs:
       - name: without the fix, the makefile's own CC wins
         run: |
           git stash list >/dev/null
-          sed -i 's/^ifeq ($(origin CC), default)$/ifeq (never,always)/' Makefile
+          sed -i 's/^ifeq ($(origin CC), default)$/ifeq (a,a)/' Makefile
           make -f Makefile -j4 2>&1 | tail -20
           file remotejoy_libretro.dll || echo "no dll, as expected"
         continue-on-error: true
