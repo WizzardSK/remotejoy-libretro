@@ -1,0 +1,33 @@
+name: preflight (windows mingw, CC from the environment)
+on: [push, workflow_dispatch]
+
+jobs:
+  windows:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64, triple: x86_64-w64-mingw32, platform: win64, pkg: g++-mingw-w64-x86-64 }
+          - { arch: x86,    triple: i686-w64-mingw32,   platform: win32, pkg: g++-mingw-w64-i686 }
+    env:
+      # The buildbot passes these as CI variables, i.e. in the environment -
+      # not on the make command line, which is what the difference is about.
+      CC: ${{ matrix.triple }}-gcc-posix
+      AR: ${{ matrix.triple }}-ar
+      platform: ${{ matrix.platform }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qy && sudo apt-get install -qy ${{ matrix.pkg }}
+      - name: without the fix, the makefile's own CC wins
+        run: |
+          git stash list >/dev/null
+          sed -i 's/^ifeq ($(origin CC), default)$/ifeq (never,always)/' Makefile
+          make -f Makefile -j4 2>&1 | tail -20
+          file remotejoy_libretro.dll || echo "no dll, as expected"
+        continue-on-error: true
+      - run: git checkout Makefile && make -f Makefile clean || true
+      - name: with the fix
+        run: make -f Makefile -j4
+      - run: file remotejoy_libretro.dll
