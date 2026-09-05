@@ -1,0 +1,23 @@
+name: preflight (windows mingw)
+on: [push, workflow_dispatch]
+
+jobs:
+  windows:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64, triple: x86_64-w64-mingw32, platform: win64, pkg: g++-mingw-w64-x86-64 }
+          - { arch: x86,    triple: i686-w64-mingw32,   platform: win32, pkg: g++-mingw-w64-i686 }
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qy && sudo apt-get install -qy ${{ matrix.pkg }}
+      # What .libretro-windows-*-mingw-make-default runs, with the MXE
+      # toolchain names replaced by the distribution's.
+      - run: |
+          make -f Makefile -j4 \
+            platform=${{ matrix.platform }} ARCH=${{ matrix.arch }} \
+            CC=${{ matrix.triple }}-gcc-posix CXX=${{ matrix.triple }}-g++-posix \
+            AR=${{ matrix.triple }}-ar
+      - run: file remotejoy_libretro.dll
